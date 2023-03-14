@@ -68,9 +68,8 @@ void start_thread(struct pt_regs *regs, unsigned long pc,
 	unsigned long sp)
 {
 	regs->status = SR_PIE;
-#ifdef CONFIG_RISCV_ROCC
-	regs->status |= SR_XS_INITIAL;
-#endif
+//#ifdef CONFIG_RISCV_ROCC
+//#endif
 	if (has_fpu) {
 		regs->status |= SR_FS_INITIAL;
 		/*
@@ -81,6 +80,10 @@ void start_thread(struct pt_regs *regs, unsigned long pc,
 	}
 	regs->epc = pc;
 	regs->sp = sp;
+	//printk("ABE DEBUG: start_thread: regs->status: 0x%lx\n", regs->status);
+	regs->status |= SR_XS_INITIAL;
+	//printk("ABE DEBUG: start_thread (after xs): regs->status: 0x%lx\n", regs->status);
+	//printk("ABE DEBUG: start_thread (before exit): regs->status: 0x%lx\n", regs->status);
 	set_fs(USER_DS);
 }
 
@@ -93,6 +96,7 @@ void flush_thread(void)
 	 *	fflags: accrued exceptions cleared
 	 */
 	fstate_off(current, task_pt_regs(current));
+	//printk("ABE DEBUG: flush_thread: regs->status: 0x%lx\n", task_pt_regs(current)->status);
 	memset(&current->thread.fstate, 0, sizeof(current->thread.fstate));
 #endif
 }
@@ -101,6 +105,7 @@ int arch_dup_task_struct(struct task_struct *dst, struct task_struct *src)
 {
 	fstate_save(src, task_pt_regs(src));
 	*dst = *src;
+	//printk("ABE DEBUG: arch_dup_task_struct: regs->status: 0x%lx\n", task_pt_regs(src)->status);
 	return 0;
 }
 
@@ -108,6 +113,7 @@ int copy_thread_tls(unsigned long clone_flags, unsigned long usp,
 	unsigned long arg, struct task_struct *p, unsigned long tls)
 {
 	struct pt_regs *childregs = task_pt_regs(p);
+	//printk("ABE DEBUG: copy_thread_tls: childregs->status: 0x%lx\n", childregs->status);
 
 	/* p->thread holds context to be restored by __switch_to() */
 	if (unlikely(p->flags & PF_KTHREAD)) {
@@ -129,6 +135,9 @@ int copy_thread_tls(unsigned long clone_flags, unsigned long usp,
 		childregs->a0 = 0; /* Return value of fork() */
 		p->thread.ra = (unsigned long)ret_from_fork;
 	}
+	//printk("ABE DEBUG: copy_thread_tls (before exit): childregs->status: 0x%lx\n", childregs->status);
+	childregs->status |= SR_XS_INITIAL;
+	//printk("ABE DEBUG: copy_thread_tls (after force): childregs->status: 0x%lx\n", childregs->status);
 	p->thread.sp = (unsigned long)childregs; /* kernel sp */
 	return 0;
 }
